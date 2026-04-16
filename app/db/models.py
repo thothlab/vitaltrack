@@ -34,6 +34,19 @@ from app.domain.enums import (
 )
 
 
+def _pgenum(enum_cls, name: str) -> SAEnum:
+    """Postgres ENUM bound to the .value (lowercase) of each member, not the
+    Python member NAME. Without values_callable SQLAlchemy would send
+    'PATIENT' instead of 'patient' and Postgres would reject it."""
+    return SAEnum(
+        enum_cls,
+        name=name,
+        values_callable=lambda c: [m.value for m in c],
+        native_enum=True,
+        create_type=False,
+    )
+
+
 # --------------------------------------------------------------------- USERS
 class User(Base, TimestampedMixin):
     __tablename__ = "users"
@@ -43,13 +56,13 @@ class User(Base, TimestampedMixin):
     username: Mapped[Optional[str]] = mapped_column(String(64))
     full_name: Mapped[Optional[str]] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
-        SAEnum(UserRole, name="user_role"), default=UserRole.PATIENT, nullable=False
+        _pgenum(UserRole, "user_role"), default=UserRole.PATIENT, nullable=False
     )
     timezone: Mapped[str] = mapped_column(String(64), default="Europe/Moscow", nullable=False)
     locale: Mapped[str] = mapped_column(String(8), default="ru", nullable=False)
 
     # Patient profile
-    sex: Mapped[Optional[Sex]] = mapped_column(SAEnum(Sex, name="sex"))
+    sex: Mapped[Optional[Sex]] = mapped_column(_pgenum(Sex, "sex"))
     birth_date: Mapped[Optional[date]] = mapped_column(Date)
     height_cm: Mapped[Optional[float]] = mapped_column(Float)
     weight_kg: Mapped[Optional[float]] = mapped_column(Float)
@@ -130,7 +143,7 @@ class GlucoseRecord(Base, TimestampedMixin):
     measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     value_mmol: Mapped[float] = mapped_column(Float, nullable=False)
     context: Mapped[GlucoseContext] = mapped_column(
-        SAEnum(GlucoseContext, name="glucose_context"), nullable=False
+        _pgenum(GlucoseContext, "glucose_context"), nullable=False
     )
     note: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -151,7 +164,7 @@ class Medication(Base, TimestampedMixin):
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     schedule_type: Mapped[MedScheduleType] = mapped_column(
-        SAEnum(MedScheduleType, name="med_schedule_type"), nullable=False
+        _pgenum(MedScheduleType, "med_schedule_type"), nullable=False
     )
     # FIXED_TIMES: {"times": ["08:00", "20:00"]}
     # EVERY_N_HOURS: {"interval_hours": 8, "anchor": "08:00"}
@@ -209,7 +222,7 @@ class SymptomRecord(Base, TimestampedMixin):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     wellbeing: Mapped[WellbeingGrade] = mapped_column(
-        SAEnum(WellbeingGrade, name="wellbeing_grade"), nullable=False
+        _pgenum(WellbeingGrade, "wellbeing_grade"), nullable=False
     )
     symptoms: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     intensity: Mapped[Optional[int]] = mapped_column(Integer)  # 1..10
@@ -228,7 +241,7 @@ class MealRecord(Base, TimestampedMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     eaten_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    meal_type: Mapped[MealType] = mapped_column(SAEnum(MealType, name="meal_type"), nullable=False)
+    meal_type: Mapped[MealType] = mapped_column(_pgenum(MealType, "meal_type"), nullable=False)
     tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     note: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -267,9 +280,9 @@ class Alert(Base, TimestampedMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    kind: Mapped[AlertKind] = mapped_column(SAEnum(AlertKind, name="alert_kind"), nullable=False)
+    kind: Mapped[AlertKind] = mapped_column(_pgenum(AlertKind, "alert_kind"), nullable=False)
     severity: Mapped[AlertSeverity] = mapped_column(
-        SAEnum(AlertSeverity, name="alert_severity"), nullable=False
+        _pgenum(AlertSeverity, "alert_severity"), nullable=False
     )
     summary: Mapped[str] = mapped_column(String(512), nullable=False)
     payload: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB)
