@@ -1,0 +1,46 @@
+# Changelog
+
+## [Unreleased]
+
+### Fixed
+- `alembic/versions/0001_init.py`: explicit enum creation with
+  `checkfirst=True`; column-level enum references switched to
+  `postgresql.ENUM(create_type=False)` so `op.create_table` no longer
+  re-issues `CREATE TYPE` and crashes with `DuplicateObjectError`.
+- `app/db/models.py`: `User.alerts` relationship now declares
+  `foreign_keys="Alert.user_id"` because `Alert` has two FKs back to
+  `users.id` (`user_id`, `acknowledged_by_id`). Without it SQLAlchemy
+  raised `AmbiguousForeignKeysError` at startup.
+- `app/main.py`: removed the `lifespan`/`@app.on_event("startup")` race —
+  the bot, dispatcher and webhook router are now wired synchronously inside
+  `create_app()`; `lifespan` only handles `set_webhook` + scheduler
+  start/stop.
+- `docker-compose.yml`: api published on `127.0.0.1:8090:8080` to avoid the
+  host-port-8080 conflict with Docker Desktop on macOS.
+
+### Tests
+- 19/19 green (`pytest -q`). `test_expected_intakes_interval` adjusted to
+  match documented behaviour (8h interval anchored at 08:00 fires at
+  `{0, 8, 16}` within a UTC day window).
+
+## [0.1.0] — 2026-04-16
+
+Initial production-ready release.
+
+- Modular architecture: handlers → services → repositories → ORM.
+- Postgres 16 (JSONB, TIMESTAMPTZ, indexed FKs), Redis 7 (FSM storage).
+- aiogram 3.x webhook-only delivery, FSM groups for every entry flow,
+  cancel/back, "Сейчас" / "вчера 21:30" date helpers.
+- APScheduler 3.x with persistent SQLAlchemyJobStore on the same Postgres,
+  deterministic per-medication job IDs, `sync_all()` reconciliation on
+  restart, watchdogs for `no_data` and `missed_med`.
+- Real medical calculators: SCORE2 ESC 2021 with regional recalibration,
+  CKD-EPI 2021 race-free eGFR, BMI, HOMA-IR.
+- Reports: text / PDF (ReportLab + DejaVu fallback) / CSV (zipped),
+  periods 7d / 30d / 90d / custom.
+- Alerts with idempotent `dedup_key UNIQUE` and configurable thresholds.
+- Doctor mode: in-bot `MessageThread` + `Message` instead of real DMs;
+  bootstrap via `DOCTOR_BOOTSTRAP_IDS`.
+- Privacy: consent-on-/start, `/forget_me` cascade, RBAC in services.
+- Docker Compose stack (api + db + redis + nginx) with healthchecks and
+  automatic migrations on `api` start.
