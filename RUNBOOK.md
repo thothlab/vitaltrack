@@ -31,6 +31,73 @@ curl -fsS https://your-host/healthz
 Send `/start` to the bot. Telegram IDs in `DOCTOR_BOOTSTRAP_IDS` get the
 `doctor` role on first contact.
 
+### 1.1. Persistent ngrok tunnel (macOS LaunchAgent)
+
+For dev / demo stands where the API runs in Docker on a workstation and the
+webhook goes through ngrok, wrap ngrok in a LaunchAgent so it survives
+reboots, network drops and ngrok session resets. A dead tunnel is the usual
+cause of *"the bot stopped answering `/start` but scheduled notifications
+still arrive"* — see Troubleshooting.
+
+1. Put your authtoken in `~/Library/Application Support/ngrok/ngrok.yml`
+   (`ngrok config add-authtoken …` does this for you).
+2. Create `~/Library/LaunchAgents/com.shaukat.vitaltrack-ngrok.plist`
+   (replace the reserved subdomain with yours and `8090` with your host
+   port if you remapped the api):
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+     "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+     <key>Label</key>
+     <string>com.shaukat.vitaltrack-ngrok</string>
+     <key>ProgramArguments</key>
+     <array>
+       <string>/opt/homebrew/bin/ngrok</string>
+       <string>http</string>
+       <string>--url=<your-subdomain>.ngrok-free.dev</string>
+       <string>--log=stdout</string>
+       <string>8090</string>
+     </array>
+     <key>RunAtLoad</key><true/>
+     <key>KeepAlive</key><true/>
+     <key>ThrottleInterval</key><integer>10</integer>
+     <key>StandardOutPath</key>
+     <string>/Users/<you>/Library/Logs/vitaltrack-ngrok.log</string>
+     <key>StandardErrorPath</key>
+     <string>/Users/<you>/Library/Logs/vitaltrack-ngrok.log</string>
+     <key>EnvironmentVariables</key>
+     <dict>
+       <key>PATH</key>
+       <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+     </dict>
+   </dict>
+   </plist>
+   ```
+
+3. Load, verify, tail:
+
+   ```bash
+   launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.shaukat.vitaltrack-ngrok.plist
+   launchctl list | grep vitaltrack-ngrok      # PID + exit code
+   curl -fsS https://<your-subdomain>.ngrok-free.dev/healthz
+   tail -f ~/Library/Logs/vitaltrack-ngrok.log
+   ```
+
+4. To stop / restart:
+
+   ```bash
+   launchctl bootout   gui/$UID ~/Library/LaunchAgents/com.shaukat.vitaltrack-ngrok.plist
+   launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.shaukat.vitaltrack-ngrok.plist
+   ```
+
+`ThrottleInterval=10` keeps launchd from hot-looping if the tunnel fails to
+come up. For real production, prefer Cloudflare Tunnel or a server-hosted
+ngrok instance — macOS deep sleep will still break a workstation tunnel for
+a few seconds on wake.
+
 ## 2. Daily operations
 
 | Task | Command |
@@ -60,6 +127,21 @@ Keep at least 7 daily, 4 weekly, 12 monthly off-host copies.
 **Webhook 401 / Telegram says secret_token mismatch** → re-check `WEBHOOK_SECRET`
 in `.env`, restart `api`. Telegram cached the old secret if you changed it
 without `set_webhook`.
+
+**Bot stopped answering `/start` and callbacks, but scheduled notifications
+(watchdogs, reminders) still arrive** → classic sign that the *inbound*
+webhook path is broken while the *outbound* Bot API path is fine. Check in
+this order:
+
+```bash
+curl -fsS $WEBHOOK_BASE_URL/healthz                                    # tunnel/proxy reachable?
+curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo" | jq   # last_error_message
+```
+
+If `ERR_NGROK_3200` / 502 / 404 — the tunnel or reverse proxy is down.
+Restart it (on macOS dev: `launchctl bootstrap … vitaltrack-ngrok.plist`,
+see §1.1). Telegram will redeliver pending updates automatically; no need
+to re-register the webhook unless `getWebhookInfo.url` is wrong.
 
 **Reminders fired twice** → the SQLAlchemy jobstore couldn't find the job,
 APScheduler created a duplicate. Stop the API, run

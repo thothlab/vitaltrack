@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+- **Patient profile wizard** (`app/bot/handlers/profile.py`,
+  `app/bot/states/profile.py`). Settings → Profile opens a summary with
+  per-field edits (sex, DOB, height, weight, smoker, diabetes) and a
+  "Fill from scratch" 6-step wizard. Backed by
+  `UserService.update_profile()` which whitelists writable columns.
+- Calculators read profile context: BMI pre-fills height/weight from the
+  profile, age-gates the result (<18 → referral to pediatric BMI-for-age;
+  ≥65 → sarcopenia caveat). Calc menu reworded with plain-language labels
+  and a short what-is-this intro.
+- `callback_data="set:profile"` is owned by the new profile router
+  (registered before `settings_handler` in `app/bot/bot.py` so it wins
+  the callback).
+
+### Ops
+- macOS dev tunnel is now wrapped in a `launchctl` LaunchAgent
+  (`com.shaukat.vitaltrack-ngrok`). Documented in RUNBOOK §1.1 together
+  with a new troubleshooting entry ("bot silent on `/start`, watchdogs
+  still fire" → tunnel down, not API).
+
 ### Fixed
 - `alembic/versions/0001_init.py`: explicit enum creation with
   `checkfirst=True`; column-level enum references switched to

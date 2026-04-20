@@ -85,15 +85,30 @@ def report_format_menu() -> InlineKeyboardMarkup:
 
 def calc_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="BMI", callback_data="calc:bmi"),
-            InlineKeyboardButton(text="GFR", callback_data="calc:gfr"),
-        ],
-        [
-            InlineKeyboardButton(text="HOMA-IR", callback_data="calc:homa"),
-            InlineKeyboardButton(text="SCORE2", callback_data="calc:score"),
-        ],
+        [InlineKeyboardButton(text="❤️ Риск ССЗ · SCORE2", callback_data="calc:score")],
+        [InlineKeyboardButton(text="⚖️ ИМТ / BMI", callback_data="calc:bmi")],
+        [InlineKeyboardButton(text="🧫 СКФ / eGFR", callback_data="calc:gfr")],
+        [InlineKeyboardButton(text="🩸 Инсулинорезистентность · HOMA-IR", callback_data="calc:homa")],
         [InlineKeyboardButton(text=t("back"), callback_data="menu:home")],
+    ])
+
+
+def profile_menu() -> InlineKeyboardMarkup:
+    """Per-field edit + full wizard. Each callback re-enters the profile
+    handler, which re-renders the summary on completion."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пол", callback_data="prof:edit:sex")],
+        [InlineKeyboardButton(text="Дата рождения", callback_data="prof:edit:birth")],
+        [
+            InlineKeyboardButton(text="Рост", callback_data="prof:edit:height"),
+            InlineKeyboardButton(text="Вес", callback_data="prof:edit:weight"),
+        ],
+        [
+            InlineKeyboardButton(text="Курение", callback_data="prof:edit:smoker"),
+            InlineKeyboardButton(text="Диабет", callback_data="prof:edit:diabetes"),
+        ],
+        [InlineKeyboardButton(text="🪄 Заполнить целиком", callback_data="prof:wizard")],
+        [InlineKeyboardButton(text=t("back"), callback_data="menu:settings")],
     ])
 
 

@@ -81,11 +81,4 @@ async def confirm_forget(cq: CallbackQuery) -> None:
     await cq.answer()
 
 
-@router.callback_query(F.data == "set:profile")
-async def edit_profile(cq: CallbackQuery) -> None:
-    await cq.message.edit_text(
-        "Профиль (рост/вес/пол/курение) сейчас задаётся через калькуляторы. "
-        "Будет вынесено в отдельный мастер в следующем релизе.",
-        reply_markup=settings_menu(),
-    )
-    await cq.answer()
+# `set:profile` is handled by app.bot.handlers.profile (registered earlier).

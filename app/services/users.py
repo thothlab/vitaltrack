@@ -72,3 +72,17 @@ class UserService:
 
     async def by_telegram(self, telegram_id: int) -> Optional[User]:
         return await self.repo.by_telegram(telegram_id)
+
+    async def update_profile(self, user: User, **fields: object) -> None:
+        """Patch the patient profile in-place. Only known columns are
+        accepted; values of None clear the field. Used by the in-bot
+        profile wizard."""
+        allowed = {
+            "sex", "birth_date", "height_cm", "weight_kg",
+            "is_smoker", "has_diabetes",
+        }
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"unknown profile field(s): {sorted(unknown)}")
+        for key, value in fields.items():
+            setattr(user, key, value)

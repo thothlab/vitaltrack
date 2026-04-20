@@ -36,6 +36,7 @@ def build_dispatcher() -> Dispatcher:
         menu,
         nutrition,
         pressure,
+        profile,
         reports,
         settings as settings_handler,
         start,
@@ -54,6 +55,7 @@ def build_dispatcher() -> Dispatcher:
         reports.router,
         doctor.router,
         calculators.router,
+        profile.router,      # must precede settings.router to own set:profile
         settings_handler.router,
     ):
         dp.include_router(router)

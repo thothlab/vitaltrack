@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
@@ -12,6 +14,7 @@ from aiogram.types import (
 from app.bot.keyboards.common import cancel_kb
 from app.bot.keyboards.patient import calc_menu
 from app.bot.states.calculators import BMIFSM, GFRFSM, HOMAFSM, SCOREFSM
+from app.db.models import User
 from app.services.calculators import (
     age_from_birth,
     bmi,
@@ -26,14 +29,15 @@ router = Router(name="calculators")
 
 # ----- BMI -----
 @router.callback_query(F.data == "calc:bmi")
-async def bmi_start(cq: CallbackQuery, state: FSMContext) -> None:
+async def bmi_start(cq: CallbackQuery, state: FSMContext, user: User) -> None:
     await state.set_state(BMIFSM.waiting_height)
-    await cq.message.edit_text("Рост, см:", reply_markup=cancel_kb())
+    prefill = f" (в профиле {user.height_cm:g} см)" if user.height_cm else ""
+    await cq.message.edit_text(f"Рост, см{prefill}:", reply_markup=cancel_kb())
     await cq.answer()
 
 
 @router.message(BMIFSM.waiting_height)
-async def bmi_h(message: Message, state: FSMContext) -> None:
+async def bmi_h(message: Message, state: FSMContext, user: User) -> None:
     try:
         h = float((message.text or "").replace(",", "."))
     except ValueError:
@@ -41,20 +45,46 @@ async def bmi_h(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(h=h)
     await state.set_state(BMIFSM.waiting_weight)
-    await message.answer("Вес, кг:", reply_markup=cancel_kb())
+    prefill = f" (в профиле {user.weight_kg:g} кг)" if user.weight_kg else ""
+    await message.answer(f"Вес, кг{prefill}:", reply_markup=cancel_kb())
 
 
 @router.message(BMIFSM.waiting_weight)
-async def bmi_w(message: Message, state: FSMContext) -> None:
+async def bmi_w(message: Message, state: FSMContext, user: User) -> None:
     try:
         w = float((message.text or "").replace(",", "."))
     except ValueError:
         await message.answer("Нужно число.")
         return
     data = await state.get_data()
-    res = bmi(data["h"], w)
     await state.clear()
-    await message.answer(f"BMI = {res.bmi} → {res.category}", reply_markup=calc_menu())
+
+    # Age gate / interpretation note based on profile birth_date.
+    age = age_from_birth(user.birth_date, date.today()) if user.birth_date else None
+    if age is not None and age < 18:
+        await message.answer(
+            f"Вам {age} — для детей и подростков ИМТ оценивается по "
+            "возрастно-половым перцентилям (BMI-for-age, ВОЗ/CDC), а не по "
+            "взрослым порогам. Этот калькулятор для возраста &lt; 18 не "
+            "подходит — обсудите с педиатром.",
+            reply_markup=calc_menu(),
+        )
+        return
+
+    res = bmi(data["h"], w)
+    lines = [f"<b>ИМТ / BMI = {res.bmi}</b> → {res.category}"]
+    if age is None:
+        lines.append(
+            "\n<i>Расчёт по взрослой шкале ВОЗ (≥18 лет). Заполните дату "
+            "рождения в профиле, чтобы калькулятор учитывал возраст.</i>"
+        )
+    elif age >= 65:
+        lines.append(
+            f"\n<i>Вам {age} — у пожилых саркопения может смещать "
+            "оптимальный диапазон ИМТ вверх (~23–28). Эти пороги ВОЗ "
+            "формально те же, но трактуйте результат с врачом.</i>"
+        )
+    await message.answer("\n".join(lines), reply_markup=calc_menu())
 
 
 # ----- GFR -----
@@ -101,7 +131,8 @@ async def gfr_cr(message: Message, state: FSMContext) -> None:
     res = egfr_ckdepi_2021(cr, int(data["age"]), data["sex"])
     await state.clear()
     await message.answer(
-        f"eGFR (CKD-EPI 2021) = {res.egfr} мл/мин/1.73м² → {res.stage}",
+        f"<b>СКФ / eGFR = {res.egfr} мл/мин/1.73м²</b> → {res.stage}\n"
+        "<i>Формула CKD-EPI 2021 (race-free).</i>",
         reply_markup=calc_menu(),
     )
 
@@ -136,8 +167,11 @@ async def homa_ins(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     res = homa_ir(data["g"], i)
     await state.clear()
-    await message.answer(f"HOMA-IR = {res.value} → {res.interpretation}",
-                         reply_markup=calc_menu())
+    await message.answer(
+        f"<b>HOMA-IR = {res.value}</b> → {res.interpretation}\n"
+        "<i>Индекс инсулинорезистентности по глюкозе и инсулину натощак.</i>",
+        reply_markup=calc_menu(),
+    )
 
 
 # ----- SCORE2 -----
@@ -234,8 +268,8 @@ async def score_region(cq: CallbackQuery, state: FSMContext) -> None:
     )
     await state.clear()
     await cq.message.edit_text(
-        f"SCORE2: 10-летний риск ССЗ = {res.risk_pct}% → {res.category}\n"
-        f"(Регион: {res.region})",
+        f"<b>Риск ССЗ / SCORE2 = {res.risk_pct}%</b> (10 лет) → {res.category}\n"
+        f"<i>Регион калибровки: {res.region}. ESC 2021.</i>",
         reply_markup=calc_menu(),
     )
     await cq.answer()

@@ -55,7 +55,19 @@ async def reports(cq: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "menu:calc")
 async def calc(cq: CallbackQuery) -> None:
-    await cq.message.edit_text("Калькуляторы:", reply_markup=calc_menu())
+    await cq.message.edit_text(
+        "🧮 <b>Медицинские калькуляторы</b>\n\n"
+        "Считают по реальным формулам, не дают диагноз — только ориентир для "
+        "обсуждения с врачом.\n\n"
+        "• <b>SCORE2</b> — 10-летний риск сердечно-сосудистых событий "
+        "(ESC 2021), для возраста 40–69.\n"
+        "• <b>ИМТ / BMI</b> — индекс массы тела (рост/вес).\n"
+        "• <b>СКФ / eGFR</b> — скорость клубочковой фильтрации "
+        "(CKD-EPI 2021), стадия по K/DOQI.\n"
+        "• <b>HOMA-IR</b> — индекс инсулинорезистентности по глюкозе и "
+        "инсулину натощак.",
+        reply_markup=calc_menu(),
+    )
     await cq.answer()
 
 

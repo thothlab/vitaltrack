@@ -14,6 +14,8 @@ It is **not** an MVP — the codebase ships with:
 * Alembic migrations
 * PDF + CSV + text reports
 * SCORE2 / BMI / GFR (CKD-EPI 2021) / HOMA-IR calculators (real formulas)
+* Patient profile wizard (sex / DOB / height / weight / smoker / diabetes)
+  that pre-fills and age-gates the calculators
 * Configurable alert thresholds (high BP, hypoglycemia, missed meds, no data)
 * Webhook-only Telegram delivery (FastAPI), Nginx reverse proxy
 * Docker Compose deployment
@@ -86,6 +88,9 @@ curl -fsS https://<your-ngrok>.ngrok-free.dev/healthz
 > `127.0.0.1:8090:8080` because Docker Desktop on macOS occupies host port
 > 8080. Change the left-hand side if you prefer a different host port.
 
+For a persistent local tunnel (survives reboots / network blips) see
+[`RUNBOOK.md` §1.1 — ngrok as a macOS LaunchAgent](RUNBOOK.md#11-persistent-ngrok-tunnel-macos-launchagent).
+
 ## Architecture summary
 
 * **Handlers** parse callbacks/messages, push state, and call **services**.
@@ -110,6 +115,7 @@ testable and could be exposed via an HTTP API later.
 | Nutrition    | meal type, free tags, time                   | no        | —      |
 | Labs         | TC / LDL / HDL / TG / glucose / insulin      | no        | —      |
 | Calculators  | SCORE2, BMI, GFR (CKD-EPI 2021), HOMA-IR     | —         | —      |
+| Profile      | sex, DOB, height, weight, smoker, diabetes   | —         | —      |
 | Reports      | 7d / 30d / 90d / custom · text / PDF / CSV   | —         | —      |
 | Doctor mode  | patient list, in-bot threads, alerts inbox   | —         | —      |
 
