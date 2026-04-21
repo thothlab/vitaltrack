@@ -121,3 +121,15 @@ async def more_no(cq: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await cq.message.edit_text("Готово.", reply_markup=record_menu())
     await cq.answer()
+
+
+@router.message(PressureFSM.waiting_more)
+async def more_text(message: Message, state: FSMContext) -> None:
+    """User typed the next systolic value without pressing «Да» — accept it directly."""
+    text = (message.text or "").strip()
+    if not text.isdigit():
+        await message.answer("Нажмите «Да» для нового измерения или «Нет» для завершения.")
+        return
+    await state.update_data(systolic=int(text))
+    await state.set_state(PressureFSM.waiting_diastolic)
+    await message.answer("Введите ДАД (нижнее), число:", reply_markup=cancel_kb())
