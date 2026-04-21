@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.services.reports import ReportData
 from app.utils.time import format_user_dt
 
@@ -28,6 +30,19 @@ def render_text(data: ReportData) -> str:
                      + (f", ЧСС {ps.hr_mean}" if ps.hr_mean else ""))
         parts.append(f"  макс: {ps.sys_max}/{ps.dia_max}, мин: {ps.sys_min}/{ps.dia_min}")
         parts.append(f"  эпизодов выше порога: {ps.high_count}, ниже: {ps.low_count}")
+        if len(data.pressure_daily) > 1:
+            parts.append("  По дням:")
+            for row in data.pressure_daily:
+                label = datetime.strptime(row.date, "%Y-%m-%d").strftime("%d.%m")
+                line = f"    {label}: ср {row.sys_mean}/{row.dia_mean}"
+                if row.hr_mean is not None:
+                    line += f", ЧСС {row.hr_mean}"
+                line += f" (×{row.n})"
+                parts.append(line)
+                parts.append(
+                    f"         макс {row.sys_max}/{row.dia_max},"
+                    f" мин {row.sys_min}/{row.dia_min}"
+                )
     parts.append("")
 
     # Glucose

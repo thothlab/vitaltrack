@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from statistics import mean
@@ -23,7 +24,7 @@ from app.repositories.nutrition import NutritionRepository
 from app.repositories.pressure import PressureRepository
 from app.repositories.symptoms import SymptomRepository
 from app.services.medications import MedicationService
-from app.utils.time import now_utc
+from app.utils.time import now_utc, to_user_tz
 
 
 @dataclass
@@ -59,6 +60,19 @@ class AdherenceSummary:
 
 
 @dataclass
+class PressureDailyRow:
+    date: str           # YYYY-MM-DD in user's timezone
+    n: int
+    sys_mean: float
+    dia_mean: float
+    hr_mean: Optional[float]
+    sys_max: int
+    dia_max: int
+    sys_min: int
+    dia_min: int
+
+
+@dataclass
 class ReportData:
     user: User
     period: ReportPeriod
@@ -72,6 +86,7 @@ class ReportData:
     symptoms: list[SymptomRecord]
     meals: list[MealRecord]
     latest_lab: Optional[LabResult]
+    pressure_daily: list[PressureDailyRow] = field(default_factory=list)
 
 
 PERIOD_DAYS = {
@@ -114,6 +129,7 @@ class ReportService:
 
         # Pressure summary
         ps = PressureSummary()
+        pressure_daily: list[PressureDailyRow] = []
         if pressure:
             ps.n = len(pressure)
             ps.sys_mean = round(mean(r.systolic for r in pressure), 1)
@@ -135,6 +151,26 @@ class ReportService:
             ps.low_count = sum(
                 1 for r in pressure if r.systolic <= sys_low or r.diastolic <= dia_low
             )
+
+            # Per-day averages (grouped in user's local timezone)
+            by_day: dict[str, list] = defaultdict(list)
+            for r in pressure:
+                day_key = to_user_tz(r.measured_at, user.timezone).strftime("%Y-%m-%d")
+                by_day[day_key].append(r)
+            for day in sorted(by_day):
+                recs = by_day[day]
+                day_hrs = [r.pulse for r in recs if r.pulse is not None]
+                pressure_daily.append(PressureDailyRow(
+                    date=day,
+                    n=len(recs),
+                    sys_mean=round(mean(r.systolic for r in recs), 1),
+                    dia_mean=round(mean(r.diastolic for r in recs), 1),
+                    hr_mean=round(mean(day_hrs), 1) if day_hrs else None,
+                    sys_max=max(r.systolic for r in recs),
+                    dia_max=max(r.diastolic for r in recs),
+                    sys_min=min(r.systolic for r in recs),
+                    dia_min=min(r.diastolic for r in recs),
+                ))
 
         # Glucose summary
         gs = GlucoseSummary()
@@ -174,4 +210,5 @@ class ReportService:
             symptoms=symptoms,
             meals=meals,
             latest_lab=latest_lab,
+            pressure_daily=pressure_daily,
         )

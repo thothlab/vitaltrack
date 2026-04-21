@@ -3,6 +3,19 @@
 ## [Unreleased]
 
 ### Added
+- **Flexible datetime input for pressure readings.** The time part now accepts
+  `,` `;` and `.` as separators in addition to `:`, so mobile typos like
+  `14,30` or `вчера 23;45` or `15.04 14.30` are parsed correctly.
+  Date tokens such as `15.04.2025` are unaffected.
+  (`app/utils/time.py` — `_normalize_time_token()`)
+- **Per-day pressure breakdown in reports.** The text report now includes a
+  "По дням" section showing per-day mean ± max/min pressure (and HR when
+  available) when readings span two or more days. Computed from the same
+  records already fetched for the summary, grouped by the user's local timezone.
+  (`app/services/reports.py` — `PressureDailyRow`, `pressure_daily` field;
+  `app/reports/text.py`)
+
+### Added (previous)
 - **Patient profile wizard** (`app/bot/handlers/profile.py`,
   `app/bot/states/profile.py`). Settings → Profile opens a summary with
   per-field edits (sex, DOB, height, weight, smoker, diabetes) and a

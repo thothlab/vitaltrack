@@ -116,7 +116,7 @@ testable and could be exposed via an HTTP API later.
 | Labs         | TC / LDL / HDL / TG / glucose / insulin      | no        | —      |
 | Calculators  | SCORE2, BMI, GFR (CKD-EPI 2021), HOMA-IR     | —         | —      |
 | Profile      | sex, DOB, height, weight, smoker, diabetes   | —         | —      |
-| Reports      | 7d / 30d / 90d / custom · text / PDF / CSV   | —         | —      |
+| Reports      | 7d / 30d / 90d / custom · text / PDF / CSV; per-day pressure breakdown | — | — |
 | Doctor mode  | patient list, in-bot threads, alerts inbox   | —         | —      |
 
 ## Doctor mode

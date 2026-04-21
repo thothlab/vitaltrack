@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -20,14 +21,25 @@ def from_user_naive(dt_naive: datetime, tz_name: str) -> datetime:
     return dt_naive.replace(tzinfo=ZoneInfo(tz_name)).astimezone(timezone.utc)
 
 
+def _normalize_time_token(token: str) -> str:
+    """Normalize HH<sep>MM where sep is , ; or . — replaces with colon.
+    Only matches exactly two digit groups (1-2 and 2 digits) to avoid touching
+    date tokens like '15.04.2025'."""
+    return re.sub(r'^(\d{1,2})[,;.](\d{2})$', r'\1:\2', token)
+
+
 def parse_user_datetime(text: str, tz_name: str, default: Optional[datetime] = None) -> datetime:
     """Accept 'today HH:MM', 'yesterday HH:MM', 'HH:MM', 'DD.MM HH:MM',
-    'DD.MM.YYYY HH:MM'."""
+    'DD.MM.YYYY HH:MM'. Time separator may also be , ; or . (mobile typos)."""
     text = text.strip().lower().replace("  ", " ")
     tz = ZoneInfo(tz_name)
     today = datetime.now(tz=tz).date()
 
     parts = text.split()
+    # Normalize the time token (always the last token)
+    if parts:
+        parts[-1] = _normalize_time_token(parts[-1])
+
     try:
         if len(parts) == 1:
             # HH:MM only
