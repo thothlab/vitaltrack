@@ -58,7 +58,7 @@ async def time_input(message: Message, state: FSMContext, user: User) -> None:
     try:
         dt = parse_user_datetime(message.text or "", user.timezone)
     except ValueError:
-        await message.answer("Не понял время. Попробуйте: 21:30 · вчера 09:00")
+        await message.answer("Не понял время. Попробуйте: 21:30 · вчера 09:00 · 02-04 08-30")
         return
     await state.update_data(measured_at=dt.isoformat())
     await state.set_state(GlucoseFSM.waiting_value)

@@ -22,15 +22,16 @@ def from_user_naive(dt_naive: datetime, tz_name: str) -> datetime:
 
 
 def _normalize_time_token(token: str) -> str:
-    """Normalize HH<sep>MM where sep is , ; or . — replaces with colon.
+    """Normalize HH<sep>MM where sep is , ; . or - — replaces with colon.
     Only matches exactly two digit groups (1-2 and 2 digits) to avoid touching
-    date tokens like '15.04.2025'."""
-    return re.sub(r'^(\d{1,2})[,;.](\d{2})$', r'\1:\2', token)
+    date tokens like '15.04.2025' or '15-04-2025'."""
+    return re.sub(r'^(\d{1,2})[,;.\-](\d{2})$', r'\1:\2', token)
 
 
 def parse_user_datetime(text: str, tz_name: str, default: Optional[datetime] = None) -> datetime:
     """Accept 'today HH:MM', 'yesterday HH:MM', 'HH:MM', 'DD.MM HH:MM',
-    'DD.MM.YYYY HH:MM'. Time separator may also be , ; or . (mobile typos)."""
+    'DD.MM.YYYY HH:MM'. Time separator may also be , ; . or - (mobile typos).
+    Date separator may be . or -."""
     text = text.strip().lower().replace("  ", " ")
     tz = ZoneInfo(tz_name)
     today = datetime.now(tz=tz).date()
@@ -54,7 +55,7 @@ def parse_user_datetime(text: str, tz_name: str, default: Optional[datetime] = N
         else:
             date_part, time_part = parts
             hh, mm = time_part.split(":")
-            chunks = date_part.split(".")
+            chunks = re.split(r"[.\-]", date_part)
             if len(chunks) == 2:
                 day, mon = (int(x) for x in chunks)
                 year = today.year

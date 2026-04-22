@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -20,11 +21,39 @@ from app.services.reports import ReportData
 from app.utils.time import format_user_dt
 
 # Register a Unicode font so Cyrillic renders properly on any platform.
-try:
-    pdfmetrics.registerFont(TTFont("DejaVu", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"))
-    _FONT = "DejaVu"
-except Exception:
-    _FONT = "Helvetica"
+# Helvetica (ReportLab's default) has no Cyrillic glyphs → black squares.
+_FONT_CANDIDATES = (
+    # Linux (Debian/Ubuntu)
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
+    # Linux (Fedora/RHEL/Arch)
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
+    # Linux (liberation fallback)
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    # macOS
+    "/Library/Fonts/Arial Unicode.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    # Windows
+    "C:\\Windows\\Fonts\\arial.ttf",
+    "C:\\Windows\\Fonts\\DejaVuSans.ttf",
+)
+
+
+def _register_font() -> str:
+    for path in _FONT_CANDIDATES:
+        if not os.path.exists(path):
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont("VTBody", path))
+            return "VTBody"
+        except Exception:
+            continue
+    return "Helvetica"
+
+
+_FONT = _register_font()
 
 
 _PERIOD_RU = {"7d": "7 дней", "30d": "месяц", "90d": "3 месяца", "custom": "период"}

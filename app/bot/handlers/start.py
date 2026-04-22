@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram import Bot, F, Router
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,10 +15,32 @@ from app.utils.i18n import t
 
 router = Router(name="start")
 
+_INV_PREFIX = "inv_"
+
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext, session: AsyncSession, user: User) -> None:
+async def cmd_start(
+    message: Message,
+    command: CommandObject,
+    state: FSMContext,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+) -> None:
     await state.clear()
+
+    # Deep-link invite payload: /start inv_<token>
+    if command.args and command.args.startswith(_INV_PREFIX):
+        token = command.args[len(_INV_PREFIX):]
+        if user.consent_at is None:
+            # Ask for consent first; process invite after it's granted.
+            await state.update_data(pending_invite=token)
+            await message.answer(t("consent_request"), reply_markup=consent_kb())
+            return
+        from app.bot.handlers.invite import process_invite_token
+        await process_invite_token(message, token, user, session, bot)
+        return
+
     if user.consent_at is None:
         await message.answer(t("consent_request"), reply_markup=consent_kb())
         return
@@ -30,8 +52,26 @@ async def cmd_start(message: Message, state: FSMContext, session: AsyncSession, 
 
 
 @router.callback_query(F.data == "consent:yes")
-async def on_consent_yes(cq: CallbackQuery, session: AsyncSession, user: User) -> None:
+async def on_consent_yes(
+    cq: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+) -> None:
     await UserService(session).grant_consent(user)
+
+    data = await state.get_data()
+    pending_invite = data.get("pending_invite")
+    await state.clear()
+
+    if pending_invite:
+        await cq.message.edit_text(t("consent_granted"))
+        from app.bot.handlers.invite import process_invite_token
+        await process_invite_token(cq.message, pending_invite, user, session, bot)
+        await cq.answer()
+        return
+
     await cq.message.edit_text(t("consent_granted"))
     await cq.message.answer(
         "Главное меню:",

@@ -336,6 +336,30 @@ class Message(Base, TimestampedMixin):
     sender = relationship("User")
 
 
+# --------------------------------------------------------------- INVITE TOKENS
+class InviteToken(Base):
+    """Single-use invite link token. invite_type: 'doctor' (patient→doctor)
+    or 'patient' (doctor→patient)."""
+
+    __tablename__ = "invite_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    inviter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    invite_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    used_by_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    inviter = relationship("User", foreign_keys=[inviter_id])
+    used_by = relationship("User", foreign_keys=[used_by_id])
+
+
 # -------------------------------------------------------------- REMINDERS
 class Reminder(Base, TimestampedMixin):
     """Persisted reminder configuration. Actual schedule is mirrored in the

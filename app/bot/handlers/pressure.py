@@ -41,7 +41,7 @@ async def time_input(message: Message, state: FSMContext, user: User) -> None:
     try:
         dt = parse_user_datetime(message.text or "", user.timezone)
     except ValueError:
-        await message.answer("Не понял время. Попробуйте: 21:30 · вчера 09:00 · 02.04 08:15")
+        await message.answer("Не понял время. Попробуйте: 21:30 · вчера 09:00 · 02.04 08:15 · 02-04 08-30")
         return
     await state.update_data(measured_at=dt.isoformat())
     await state.set_state(PressureFSM.waiting_systolic)
@@ -50,20 +50,30 @@ async def time_input(message: Message, state: FSMContext, user: User) -> None:
 
 @router.message(PressureFSM.waiting_systolic)
 async def sys_input(message: Message, state: FSMContext) -> None:
-    if not (message.text or "").strip().isdigit():
+    text = (message.text or "").strip()
+    if not text.isdigit():
         await message.answer("Нужно число, например 135")
         return
-    await state.update_data(systolic=int(message.text))
+    value = int(text)
+    if not 40 <= value <= 300:
+        await message.answer("САД должно быть от 40 до 300. Попробуйте ещё раз, например 135")
+        return
+    await state.update_data(systolic=value)
     await state.set_state(PressureFSM.waiting_diastolic)
     await message.answer("Введите ДАД (нижнее), число:", reply_markup=cancel_kb())
 
 
 @router.message(PressureFSM.waiting_diastolic)
 async def dia_input(message: Message, state: FSMContext) -> None:
-    if not (message.text or "").strip().isdigit():
+    text = (message.text or "").strip()
+    if not text.isdigit():
         await message.answer("Нужно число, например 85")
         return
-    await state.update_data(diastolic=int(message.text))
+    value = int(text)
+    if not 20 <= value <= 250:
+        await message.answer("ДАД должно быть от 20 до 250. Попробуйте ещё раз, например 85")
+        return
+    await state.update_data(diastolic=value)
     await state.set_state(PressureFSM.waiting_pulse)
     await message.answer("Введите пульс (или «Пропустить»):", reply_markup=skip_cancel_kb())
 
@@ -83,6 +93,9 @@ async def pulse_input(message: Message, state: FSMContext, session: AsyncSession
             await message.answer("Нужно число или «Пропустить».")
             return
         pulse = int(text)
+        if not 20 <= pulse <= 250:
+            await message.answer("Пульс должен быть от 20 до 250. Попробуйте ещё раз или нажмите «Пропустить».")
+            return
     await state.update_data(pulse=pulse)
     await _persist_and_ask_more(message, state, session, user)
 
@@ -90,13 +103,23 @@ async def pulse_input(message: Message, state: FSMContext, session: AsyncSession
 async def _persist_and_ask_more(target, state: FSMContext, session: AsyncSession, user: User) -> None:
     data = await state.get_data()
     from datetime import datetime
-    payload = PressureIn(
-        measured_at=datetime.fromisoformat(data["measured_at"]),
-        systolic=int(data["systolic"]),
-        diastolic=int(data["diastolic"]),
-        pulse=data.get("pulse"),
-        session_uuid=data.get("session_uuid"),
-    )
+    from pydantic import ValidationError
+    try:
+        payload = PressureIn(
+            measured_at=datetime.fromisoformat(data["measured_at"]),
+            systolic=int(data["systolic"]),
+            diastolic=int(data["diastolic"]),
+            pulse=data.get("pulse"),
+            session_uuid=data.get("session_uuid"),
+        )
+    except ValidationError:
+        await state.set_state(PressureFSM.waiting_systolic)
+        await target.answer(
+            "Не удалось сохранить: значения вне допустимого диапазона. "
+            "Введите САД заново, число от 40 до 300:",
+            reply_markup=cancel_kb(),
+        )
+        return
     rec = await PressureService(session).add(user, payload)
     await session.flush()
     alert = await AlertService(session).evaluate_pressure(user, rec)

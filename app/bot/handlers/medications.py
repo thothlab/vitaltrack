@@ -86,7 +86,10 @@ async def msched_prn(cq: CallbackQuery, state: FSMContext, session: AsyncSession
     await session.flush()
     await schedule_medication(med, user)
     await state.clear()
-    await cq.message.edit_text(f"✅ Добавлено: {med.name} (по требованию).")
+    await cq.message.edit_text(
+        f"✅ Добавлено: {med.name} (по требованию).",
+        reply_markup=main_menu(is_doctor=(user.role == UserRole.DOCTOR)),
+    )
     await cq.answer()
 
 
@@ -194,7 +197,10 @@ async def reminder_take(cq: CallbackQuery, session: AsyncSession, user: User) ->
     await MedicationService(session).mark_scheduled(
         user, int(med_id), scheduled_at=slot, taken=True,
     )
-    await cq.message.edit_text("✅ Приём отмечен.")
+    await cq.message.edit_text(
+        "✅ Приём отмечен.",
+        reply_markup=main_menu(is_doctor=(user.role == UserRole.DOCTOR)),
+    )
     await cq.answer()
 
 
@@ -205,5 +211,8 @@ async def reminder_skip(cq: CallbackQuery, session: AsyncSession, user: User) ->
     await MedicationService(session).mark_scheduled(
         user, int(med_id), scheduled_at=slot, taken=False,
     )
-    await cq.message.edit_text("⏭ Пропуск зарегистрирован.")
+    await cq.message.edit_text(
+        "⏭ Пропуск зарегистрирован.",
+        reply_markup=main_menu(is_doctor=(user.role == UserRole.DOCTOR)),
+    )
     await cq.answer()

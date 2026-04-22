@@ -29,8 +29,10 @@ def build_dispatcher() -> Dispatcher:
     # register routers
     from app.bot.handlers import (
         calculators,
+        commands,
         doctor,
         glucose,
+        invite,
         labs,
         medications,
         menu,
@@ -45,6 +47,8 @@ def build_dispatcher() -> Dispatcher:
 
     for router in (
         start.router,
+        invite.router,    # before menu so /invite_* commands are caught early
+        commands.router,  # shortcut commands before FSM-owning routers
         menu.router,
         pressure.router,
         glucose.router,
