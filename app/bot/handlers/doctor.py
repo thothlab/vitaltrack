@@ -27,6 +27,7 @@ from app.domain.enums import ReportPeriod, UserRole
 from app.reports import render_pdf
 from app.repositories.alerts import AlertRepository
 from app.repositories.users import UserRepository
+from app.services.invites import InviteService
 from app.services.messaging import MessagingService
 from app.services.reports import ReportService
 from app.services.users import UserService
@@ -49,8 +50,14 @@ async def patients_list(cq: CallbackQuery, session: AsyncSession, user: User) ->
     patients = await UserService(session).list_patients_for(user)
     if not patients:
         await cq.message.edit_text(
-            "Нет привязанных пациентов. Дайте им свой Telegram ID для привязки в настройках.",
+            "Нет привязанных пациентов. Отправьте пациенту QR-код ниже:",
             reply_markup=doctor_menu(),
+        )
+        bot_me = await cq.bot.get_me()
+        link, qr_bytes = await InviteService(session).create_invite(user, "patient", bot_me.username)
+        await cq.message.answer_photo(
+            BufferedInputFile(qr_bytes, filename="invite.png"),
+            caption=f"QR-код для пациента.\nПациент сканирует — и сразу привязывается к вам.\n\nСсылка: {link}\n\nДействует 7 дней.",
         )
     else:
         await cq.message.edit_text("Ваши пациенты:", reply_markup=patients_kb(patients))
