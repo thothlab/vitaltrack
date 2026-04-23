@@ -7,7 +7,7 @@ STR = {
     "menu_reports": "📄 Отчёты",
     "menu_meds": "💊 Лекарства",
     "menu_calc": "🧮 Калькуляторы",
-    "menu_doctor": "🩺 Врач",
+    "menu_doctor": "🩺 Кабинет врача",
     "menu_settings": "⚙️ Настройки",
 
     "rec_pressure": "❤️ Давление",
