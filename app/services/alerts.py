@@ -136,6 +136,11 @@ class AlertService:
                     payload={"medication_id": med.id, "scheduled_at": slot.isoformat()},
                 )
                 if ok:
+                    await med_repo.record_missed(
+                        user_id=user.id,
+                        medication_id=med.id,
+                        scheduled_at=slot,
+                    )
                     results.append(
                         {
                             "kind": AlertKind.MED_MISSED,

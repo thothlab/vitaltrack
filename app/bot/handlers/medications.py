@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -178,12 +178,33 @@ async def rec_med(cq: CallbackQuery, state: FSMContext, session: AsyncSession, u
     await cq.answer()
 
 
+_LINK_WINDOW_MINUTES = 60  # link ad-hoc intake to scheduled slot if within this window
+
+
 @router.callback_query(MedIntakeFSM.waiting_medication, F.data.startswith("intake:"))
 async def intake_now(cq: CallbackQuery, state: FSMContext, session: AsyncSession, user: User) -> None:
     med_id = int(cq.data.split(":")[1])
-    await MedicationService(session).log_intake(user, IntakeIn(
-        medication_id=med_id, taken_at=now_utc(), taken=True,
-    ))
+    now = now_utc()
+    svc = MedicationService(session)
+
+    # Try to link to the nearest scheduled slot within ±LINK_WINDOW_MINUTES
+    med = await svc.repo.by_id(med_id)
+    linked_slot = None
+    if med is not None:
+        w_start = now - timedelta(minutes=_LINK_WINDOW_MINUTES)
+        w_end = now + timedelta(minutes=_LINK_WINDOW_MINUTES)
+        slots = MedicationService.expected_intakes([med], w_start, w_end, user.timezone)
+        candidates = slots.get(med_id, [])
+        if candidates:
+            linked_slot = min(candidates, key=lambda s: abs((s - now).total_seconds()))
+
+    if linked_slot is not None:
+        await svc.mark_scheduled(user, med_id, linked_slot, taken=True)
+    else:
+        await svc.log_intake(user, IntakeIn(
+            medication_id=med_id, taken_at=now, taken=True,
+        ))
+
     await state.clear()
     await cq.message.edit_text("✅ Приём отмечен.", reply_markup=record_menu())
     await cq.answer()

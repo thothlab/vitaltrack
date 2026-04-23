@@ -124,13 +124,17 @@ async def hist_glucose(cq: CallbackQuery, user: User, session: AsyncSession) -> 
 
 @router.callback_query(F.data == "hist:meds")
 async def hist_meds(cq: CallbackQuery, user: User, session: AsyncSession) -> None:
-    meds = await MedicationRepository(session).list_active(user.id)
-    if not meds:
-        txt = "Нет активных назначений"
+    rows = await MedicationRepository(session).recent_intakes_with_med(user.id, limit=20)
+    if not rows:
+        txt = "История приёма лекарств пуста"
     else:
-        lines = ["Активные препараты:"]
-        for m in meds:
-            lines.append(f"  • {m.name}" + (f" — {m.dose}" if m.dose else ""))
+        lines = ["<b>История приёма лекарств (последние 20):</b>"]
+        for intake, med in rows:
+            ts = intake.taken_at or intake.scheduled_at
+            time_str = format_user_dt(ts, user.timezone) if ts else "—"
+            status = "✅" if intake.taken else "❌"
+            dose = f" {med.dose}" if med.dose else ""
+            lines.append(f"{status} {time_str} · {med.name}{dose}")
         txt = "\n".join(lines)
     await cq.message.edit_text(txt, reply_markup=history_menu())
     await cq.answer()
