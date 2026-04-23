@@ -30,8 +30,8 @@ from app.utils.i18n import t
 
 router = Router(name="commands")
 
-_HELP_TEXT = (
-    "<b>VitalTrack — команды</b>\n\n"
+_PATIENT_HELP = (
+    "<b>VitalTrack — команды пациента</b>\n\n"
     "<b>Запись показателей:</b>\n"
     "/pressure — давление\n"
     "/glucose — глюкоза\n"
@@ -43,9 +43,33 @@ _HELP_TEXT = (
     "/meds — список препаратов\n"
     "/history — история измерений\n"
     "/report — отчёт\n\n"
+    "<b>Приглашения:</b>\n"
+    "/invite_doctor — пригласить своего врача (QR-код, однократно)\n"
+    "/invite_friend — пригласить друга как нового пациента\n\n"
     "<b>Прочее:</b>\n"
     "/settings — настройки\n"
-    "/invite_doctor — пригласить врача (QR-код)\n"
+    "/cancel — отменить текущий ввод\n"
+    "/forget_me — удалить все мои данные\n"
+)
+
+_DOCTOR_HELP = (
+    "<b>VitalTrack — команды врача</b>\n\n"
+    "<b>Запись показателей:</b>\n"
+    "/pressure — давление\n"
+    "/glucose — глюкоза\n"
+    "/symptoms — симптомы\n"
+    "/meal — питание\n"
+    "/labs — анализы\n"
+    "/med — приём лекарства\n\n"
+    "<b>Данные:</b>\n"
+    "/meds — препараты\n"
+    "/history — история\n"
+    "/report — отчёт\n\n"
+    "<b>Приглашения:</b>\n"
+    "/invite_patient — пригласить пациента (QR-код)\n"
+    "/invite_colleague — пригласить коллегу-врача (QR-код)\n\n"
+    "<b>Прочее:</b>\n"
+    "/settings — настройки\n"
     "/cancel — отменить текущий ввод\n"
     "/forget_me — удалить все мои данные\n"
 )
@@ -144,9 +168,15 @@ async def cmd_settings(message: Message, state: FSMContext) -> None:
     await message.answer("Настройки:", reply_markup=settings_menu())
 
 
+@router.message(Command("myid"))
+async def cmd_myid(message: Message, user: User) -> None:
+    await message.answer(
+        f"Ваш Telegram ID: <code>{user.telegram_id}</code>\n"
+        "Нажмите на цифры, чтобы скопировать."
+    )
+
+
 @router.message(Command("help"))
 async def cmd_help(message: Message, user: User) -> None:
-    text = _HELP_TEXT
-    if user.role == UserRole.DOCTOR:
-        text += "/invite_patient — пригласить пациента (QR-код)\n"
+    text = _DOCTOR_HELP if user.role == UserRole.DOCTOR else _PATIENT_HELP
     await message.answer(text)

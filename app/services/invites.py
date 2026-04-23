@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import secrets
 from datetime import timedelta
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import qrcode
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +14,12 @@ from app.repositories.users import UserRepository
 from app.utils.time import now_utc
 
 _TOKEN_TTL_DAYS = 7
+
+
+class RedeemResult(NamedTuple):
+    invite: Optional[InviteToken]
+    inviter: Optional[User]
+    error: Optional[str]  # None = success
 
 
 def _make_qr(data: str) -> bytes:
@@ -41,24 +47,32 @@ class InviteService:
         link = f"https://t.me/{bot_username}?start=inv_{token}"
         return link, _make_qr(link)
 
-    async def redeem(
-        self, token: str, redeemer: User
-    ) -> Optional[tuple[InviteToken, User]]:
-        """Validate and consume a token.
-        Returns (invite, inviter) on success, None if invalid/expired/used."""
+    async def redeem(self, token: str, redeemer: User) -> RedeemResult:
+        """Validate and consume a token. Returns RedeemResult; error=None means success."""
         invite = await self.repo.by_token(token)
         if invite is None:
-            return None
+            return RedeemResult(None, None, "Ссылка не найдена — возможно, она была удалена.")
         if invite.used_at is not None:
-            return None
+            return RedeemResult(None, None, "Ссылка уже была использована ранее.")
         if invite.expires_at < now_utc():
-            return None
+            return RedeemResult(None, None, "Срок действия ссылки истёк. Попросите выслать новую.")
         if invite.inviter_id == redeemer.id:
-            return None  # can't redeem own invite
+            return RedeemResult(
+                None, None,
+                "Вы не можете использовать собственную ссылку-приглашение.\n"
+                "Перешлите её другому человеку — врачу или пациенту."
+            )
+        # A patient may be linked to only one doctor.
+        if invite.invite_type == "doctor" and redeemer.doctor_id is not None:
+            return RedeemResult(
+                None, None,
+                "Вы уже прикреплены к врачу. "
+                "Пациент может работать только с одним врачом одновременно."
+            )
 
         inviter = await UserRepository(self.session).by_id(invite.inviter_id)
         if inviter is None:
-            return None
+            return RedeemResult(None, None, "Пригласивший пользователь не найден.")
 
         await self.repo.mark_used(invite, redeemer.id, now_utc())
-        return invite, inviter
+        return RedeemResult(invite, inviter, None)
