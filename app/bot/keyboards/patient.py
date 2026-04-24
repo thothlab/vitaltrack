@@ -60,7 +60,7 @@ def history_menu() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="🫃 ЖКТ", callback_data="hist:gi"),
-            InlineKeyboardButton(text="🤕 Голова", callback_data="hist:headache"),
+            InlineKeyboardButton(text="🤕 Головная боль", callback_data="hist:headache"),
         ],
         [InlineKeyboardButton(text=t("back"), callback_data="menu:home")],
     ])
