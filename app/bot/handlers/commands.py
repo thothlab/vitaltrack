@@ -187,7 +187,7 @@ async def cmd_gi(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(GIFSM.waiting_time)
     from app.bot.keyboards.common import now_or_input_kb
-    await message.answer(t("ask_time"), reply_markup=now_or_input_kb())
+    await message.answer(t("ask_time_symptoms"), reply_markup=now_or_input_kb())
 
 
 @router.message(Command("headache"))
@@ -195,7 +195,7 @@ async def cmd_headache(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(HeadacheFSM.waiting_time)
     from app.bot.keyboards.common import now_or_input_kb
-    await message.answer(t("ask_time"), reply_markup=now_or_input_kb())
+    await message.answer(t("ask_time_symptoms"), reply_markup=now_or_input_kb())
 
 
 @router.message(Command("help"))

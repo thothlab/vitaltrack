@@ -130,7 +130,7 @@ def _disability_kb() -> InlineKeyboardMarkup:
 @router.callback_query(F.data == "rec:headache")
 async def start(cq: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(HeadacheFSM.waiting_time)
-    await cq.message.edit_text(t("ask_time"), reply_markup=now_or_input_kb())
+    await cq.message.edit_text(t("ask_time_symptoms"), reply_markup=now_or_input_kb())
     await cq.answer()
 
 
