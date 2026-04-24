@@ -138,7 +138,7 @@ async def stool_chosen(cq: CallbackQuery, state: FSMContext) -> None:
     val = cq.data.split(":")[1]
     await state.update_data(stool_bristol=None if val == "skip" else int(val))
     await state.set_state(GIFSM.waiting_notes)
-    await cq.message.edit_text("Заметки (или «Пропустить»):", reply_markup=skip_cancel_kb())
+    await cq.message.edit_text("Добавьте заметку (или нажмите «Пропустить»):", reply_markup=skip_cancel_kb())
     await cq.answer()
 
 

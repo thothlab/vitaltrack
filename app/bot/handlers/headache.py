@@ -259,7 +259,7 @@ async def disability_chosen(cq: CallbackQuery, state: FSMContext) -> None:
 async def duration_skip(cq: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(duration_hours=None)
     await state.set_state(HeadacheFSM.waiting_notes)
-    await cq.message.edit_text("Заметки (или «Пропустить»):", reply_markup=skip_cancel_kb())
+    await cq.message.edit_text("Добавьте заметку (или нажмите «Пропустить»):", reply_markup=skip_cancel_kb())
     await cq.answer()
 
 
@@ -275,7 +275,7 @@ async def duration_input(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(duration_hours=hours)
     await state.set_state(HeadacheFSM.waiting_notes)
-    await message.answer("Заметки (или «Пропустить»):", reply_markup=skip_cancel_kb())
+    await message.answer("Добавьте заметку (или нажмите «Пропустить»):", reply_markup=skip_cancel_kb())
 
 
 # ---------- notes ----------
