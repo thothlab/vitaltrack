@@ -17,7 +17,9 @@ from app.bot.keyboards.patient import (
     reports_menu,
     settings_menu,
 )
+from app.bot.states.gi import GIFSM
 from app.bot.states.glucose import GlucoseFSM
+from app.bot.states.headache import HeadacheFSM
 from app.bot.states.labs import LabFSM
 from app.bot.states.medications import MedIntakeFSM
 from app.bot.states.nutrition import NutritionFSM
@@ -36,6 +38,8 @@ _PATIENT_HELP = (
     "/pressure — давление\n"
     "/glucose — глюкоза\n"
     "/symptoms — симптомы и самочувствие\n"
+    "/gi — ЖКТ (боль, тошнота, изжога, вздутие, стул)\n"
+    "/headache — головная боль / мигрень\n"
     "/meal — приём пищи\n"
     "/labs — лабораторные анализы\n"
     "/med — отметить приём лекарства\n\n"
@@ -58,6 +62,8 @@ _DOCTOR_HELP = (
     "/pressure — давление\n"
     "/glucose — глюкоза\n"
     "/symptoms — симптомы\n"
+    "/gi — ЖКТ симптомы\n"
+    "/headache — головная боль / мигрень\n"
     "/meal — питание\n"
     "/labs — анализы\n"
     "/med — приём лекарства\n\n"
@@ -174,6 +180,22 @@ async def cmd_myid(message: Message, user: User) -> None:
         f"Ваш Telegram ID: <code>{user.telegram_id}</code>\n"
         "Нажмите на цифры, чтобы скопировать."
     )
+
+
+@router.message(Command("gi"))
+async def cmd_gi(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await state.set_state(GIFSM.waiting_time)
+    from app.bot.keyboards.common import now_or_input_kb
+    await message.answer(t("ask_time"), reply_markup=now_or_input_kb())
+
+
+@router.message(Command("headache"))
+async def cmd_headache(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await state.set_state(HeadacheFSM.waiting_time)
+    from app.bot.keyboards.common import now_or_input_kb
+    await message.answer(t("ask_time"), reply_markup=now_or_input_kb())
 
 
 @router.message(Command("help"))

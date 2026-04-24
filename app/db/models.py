@@ -26,6 +26,8 @@ from app.domain.enums import (
     AlertKind,
     AlertSeverity,
     GlucoseContext,
+    HeadacheCharacter,
+    HeadacheLocation,
     MealType,
     MedScheduleType,
     Sex,
@@ -97,6 +99,12 @@ class User(Base, TimestampedMixin):
     )
     symptoms = relationship(
         "SymptomRecord", back_populates="user", cascade="all, delete-orphan"
+    )
+    gi_records = relationship(
+        "GIRecord", back_populates="user", cascade="all, delete-orphan"
+    )
+    headache_attacks = relationship(
+        "HeadacheAttack", back_populates="user", cascade="all, delete-orphan"
     )
     meals = relationship("MealRecord", back_populates="user", cascade="all, delete-orphan")
     labs = relationship("LabResult", back_populates="user", cascade="all, delete-orphan")
@@ -229,6 +237,62 @@ class SymptomRecord(Base, TimestampedMixin):
     note: Mapped[Optional[str]] = mapped_column(Text)
 
     user = relationship("User", back_populates="symptoms")
+
+
+# -------------------------------------------------------- GI SYMPTOMS
+class GIRecord(Base, TimestampedMixin):
+    """Gastrointestinal symptom entry from gastrobot."""
+
+    __tablename__ = "gi_records"
+    __table_args__ = (
+        Index("ix_gi_user_time", "user_id", "occurred_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    pain: Mapped[Optional[int]] = mapped_column(Integer)        # 0-10
+    nausea: Mapped[Optional[int]] = mapped_column(Integer)      # 0-10
+    heartburn: Mapped[Optional[int]] = mapped_column(Integer)   # 0-10
+    bloating: Mapped[Optional[int]] = mapped_column(Integer)    # 0-10
+    stool_bristol: Mapped[Optional[int]] = mapped_column(Integer)  # 1-7 or None
+    note: Mapped[Optional[str]] = mapped_column(Text)
+
+    user = relationship("User", back_populates="gi_records")
+
+
+# -------------------------------------------------------- HEADACHE
+class HeadacheAttack(Base, TimestampedMixin):
+    """Headache diary entry (ICHD-3 inspired, like Migrebot)."""
+
+    __tablename__ = "headache_attacks"
+    __table_args__ = (
+        Index("ix_headache_user_time", "user_id", "started_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    intensity: Mapped[int] = mapped_column(Integer, nullable=False)   # 1-10 VAS
+    location: Mapped[Optional[HeadacheLocation]] = mapped_column(
+        _pgenum(HeadacheLocation, "headache_location")
+    )
+    character: Mapped[Optional[HeadacheCharacter]] = mapped_column(
+        _pgenum(HeadacheCharacter, "headache_character")
+    )
+    duration_hours: Mapped[Optional[float]] = mapped_column(Float)
+    # Associated symptoms
+    nausea: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    vomiting: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    photophobia: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    phonophobia: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    aura: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Triggers and impact
+    triggers: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    disability: Mapped[Optional[int]] = mapped_column(Integer)  # 0-3
+    note: Mapped[Optional[str]] = mapped_column(Text)
+
+    user = relationship("User", back_populates="headache_attacks")
 
 
 # --------------------------------------------------------------- NUTRITION

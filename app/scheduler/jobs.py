@@ -105,6 +105,49 @@ async def run_missed_med_watchdog() -> None:
         await bot.session.close()
 
 
+_GREETING_TEXTS = {
+    "morning": (
+        "🌅 Доброе утро! Как твоё самочувствие?\n"
+        "Не забудь внести данные:\n"
+        "• Давление: /pressure\n"
+        "• Глюкоза: /glucose\n"
+        "• Симптомы: /symptoms\n"
+        "• Питание: /meal\n"
+        "• Лекарства: /med"
+    ),
+    "afternoon": (
+        "☀️ Как твоё самочувствие?\n"
+        "Не забудь внести данные:\n"
+        "• Давление: /pressure\n"
+        "• Глюкоза: /glucose\n"
+        "• Симптомы: /symptoms\n"
+        "• Питание: /meal\n"
+        "• Лекарства: /med"
+    ),
+    "evening": (
+        "🌙 Добрый вечер! Как прошёл день?\n"
+        "Не забудь внести данные:\n"
+        "• Давление: /pressure\n"
+        "• Глюкоза: /glucose\n"
+        "• Симптомы: /symptoms\n"
+        "• Питание: /meal\n"
+        "• Лекарства: /med"
+    ),
+}
+
+
+async def fire_greeting(telegram_id: int, period: str) -> None:
+    """Send a check-in prompt (morning / afternoon / evening) to one patient."""
+    bot = await _bot()
+    text = _GREETING_TEXTS.get(period, _GREETING_TEXTS["morning"])
+    try:
+        await bot.send_message(telegram_id, text)
+    except Exception as e:
+        log.warning("Greeting (%s) failed for %s: %s", period, telegram_id, e)
+    finally:
+        await bot.session.close()
+
+
 async def _notify_alert(bot: Bot, session, user: User, text: str) -> None:
     try:
         await bot.send_message(user.telegram_id, f"⚠️ {text}")

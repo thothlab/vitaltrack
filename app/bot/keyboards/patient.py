@@ -40,6 +40,10 @@ def record_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=t("rec_meal"), callback_data="rec:meal"),
             InlineKeyboardButton(text=t("rec_lab"), callback_data="rec:lab"),
         ],
+        [
+            InlineKeyboardButton(text=t("rec_gi"), callback_data="rec:gi"),
+            InlineKeyboardButton(text=t("rec_headache"), callback_data="rec:headache"),
+        ],
         [InlineKeyboardButton(text=t("back"), callback_data="menu:home")],
     ])
 
@@ -53,6 +57,10 @@ def history_menu() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="💊 Лекарства", callback_data="hist:meds"),
             InlineKeyboardButton(text="🤒 Симптомы", callback_data="hist:symptoms"),
+        ],
+        [
+            InlineKeyboardButton(text="🫃 ЖКТ", callback_data="hist:gi"),
+            InlineKeyboardButton(text="🤕 Голова", callback_data="hist:headache"),
         ],
         [InlineKeyboardButton(text=t("back"), callback_data="menu:home")],
     ])

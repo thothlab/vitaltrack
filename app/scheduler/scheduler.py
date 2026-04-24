@@ -55,6 +55,7 @@ async def init_scheduler() -> AsyncIOScheduler:
     log.info("Scheduler started, tz=%s", settings.app_timezone)
     await sync_all()
     _install_recurring_watchdogs()
+    await _install_greetings()
     return _scheduler
 
 
@@ -79,6 +80,51 @@ def _install_recurring_watchdogs() -> None:
         id="watchdog:missed_med",
         replace_existing=True,
     )
+
+
+_GREETING_SCHEDULE = {
+    "morning":   (8,  0),
+    "afternoon": (15, 0),
+    "evening":   (21, 0),
+}
+
+
+async def _install_greetings() -> None:
+    """Schedule morning/afternoon/evening greetings for every active patient."""
+    s = get_scheduler()
+    async with async_session_factory() as session:
+        users = (await session.execute(
+            select(User).where(User.role == UserRole.PATIENT, User.deleted_at.is_(None))
+        )).scalars().all()
+        for user in users:
+            _add_greeting_jobs(s, user)
+    log.info("Greetings installed for %d patients", len(users))
+
+
+def _add_greeting_jobs(s: AsyncIOScheduler, user: User) -> None:
+    for period, (hour, minute) in _GREETING_SCHEDULE.items():
+        s.add_job(
+            "app.scheduler.jobs:fire_greeting",
+            trigger=CronTrigger(hour=hour, minute=minute, timezone=user.timezone),
+            args=[user.telegram_id, period],
+            id=f"greeting:{period}:{user.id}",
+            replace_existing=True,
+        )
+
+
+def schedule_greetings(user: User) -> None:
+    """(Re-)install all greeting jobs for one user — call on registration or TZ change."""
+    _add_greeting_jobs(get_scheduler(), user)
+
+
+def unschedule_greetings(user_id: int) -> None:
+    """Remove all greeting jobs for a user (e.g. on account deletion)."""
+    s = get_scheduler()
+    for period in _GREETING_SCHEDULE:
+        try:
+            s.remove_job(f"greeting:{period}:{user_id}")
+        except Exception:
+            pass
 
 
 # ----- per-medication scheduling -----

@@ -9,6 +9,8 @@ from app.domain.enums import (
     AlertKind,
     AlertSeverity,
     GlucoseContext,
+    HeadacheCharacter,
+    HeadacheLocation,
     MealType,
     MedScheduleType,
     Sex,
@@ -96,6 +98,34 @@ class SymptomIn(BaseModel):
     wellbeing: WellbeingGrade
     symptoms: list[str] = Field(default_factory=list)
     intensity: Optional[int] = Field(default=None, ge=1, le=10)
+    note: Optional[str] = None
+
+
+# ---------------- GI -------------------
+class GIRecordIn(BaseModel):
+    occurred_at: datetime
+    pain: Optional[int] = Field(default=None, ge=0, le=10)
+    nausea: Optional[int] = Field(default=None, ge=0, le=10)
+    heartburn: Optional[int] = Field(default=None, ge=0, le=10)
+    bloating: Optional[int] = Field(default=None, ge=0, le=10)
+    stool_bristol: Optional[int] = Field(default=None, ge=1, le=7)
+    note: Optional[str] = None
+
+
+# ---------------- HEADACHE -------------
+class HeadacheAttackIn(BaseModel):
+    started_at: datetime
+    intensity: int = Field(ge=1, le=10)
+    location: Optional[HeadacheLocation] = None
+    character: Optional[HeadacheCharacter] = None
+    duration_hours: Optional[float] = None
+    nausea: bool = False
+    vomiting: bool = False
+    photophobia: bool = False
+    phonophobia: bool = False
+    aura: bool = False
+    triggers: list[str] = Field(default_factory=list)
+    disability: Optional[int] = Field(default=None, ge=0, le=3)
     note: Optional[str] = None
 
 

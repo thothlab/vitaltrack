@@ -11,6 +11,7 @@ from app.bot.states.doctor import DoctorLinkFSM
 from app.db.models import User
 from app.domain.enums import UserRole
 from app.repositories.users import UserRepository
+from app.scheduler.scheduler import schedule_greetings
 from app.services.users import UserService
 
 router = Router(name="settings")
@@ -38,6 +39,8 @@ async def maybe_tz(message: Message, state: FSMContext, session: AsyncSession, u
         await message.answer("Неизвестный часовой пояс.")
         return
     user.timezone = message.text.strip()
+    if user.role == UserRole.PATIENT:
+        schedule_greetings(user)
     await state.clear()
     await message.answer(f"Часовой пояс установлен: {user.timezone}",
                          reply_markup=settings_menu())

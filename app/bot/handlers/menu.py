@@ -15,7 +15,9 @@ from app.bot.keyboards.patient import (
 from app.bot.keyboards.doctor import doctor_menu
 from app.db.models import User
 from app.domain.enums import UserRole
+from app.repositories.gi import GIRepository
 from app.repositories.glucose import GlucoseRepository
+from app.repositories.headache import HeadacheRepository
 from app.repositories.medications import MedicationRepository
 from app.repositories.pressure import PressureRepository
 from app.repositories.symptoms import SymptomRepository
@@ -135,6 +137,73 @@ async def hist_meds(cq: CallbackQuery, user: User, session: AsyncSession) -> Non
             status = "✅" if intake.taken else "❌"
             dose = f" {med.dose}" if med.dose else ""
             lines.append(f"{status} {time_str} · {med.name}{dose}")
+        txt = "\n".join(lines)
+    await cq.message.edit_text(txt, reply_markup=history_menu())
+    await cq.answer()
+
+
+@router.callback_query(F.data == "hist:gi")
+async def hist_gi(cq: CallbackQuery, user: User, session: AsyncSession) -> None:
+    recs = await GIRepository(session).latest(user.id, limit=10)
+    if not recs:
+        txt = "Нет записей ЖКТ"
+    else:
+        lines = ["<b>ЖКТ — последние записи:</b>"]
+        bristol_desc = {1: "запор", 2: "комки", 3: "трещины", 4: "норма",
+                        5: "мягкие", 6: "кашица", 7: "диарея"}
+        for r in recs:
+            parts = []
+            if r.pain is not None:
+                parts.append(f"боль {r.pain}")
+            if r.nausea is not None:
+                parts.append(f"тошнота {r.nausea}")
+            if r.heartburn is not None:
+                parts.append(f"изжога {r.heartburn}")
+            if r.bloating is not None:
+                parts.append(f"вздутие {r.bloating}")
+            if r.stool_bristol is not None:
+                parts.append(f"стул {r.stool_bristol} ({bristol_desc.get(r.stool_bristol, '')})")
+            summary = " · ".join(parts) if parts else "—"
+            lines.append(f"  {format_user_dt(r.occurred_at, user.timezone)} · {summary}")
+        txt = "\n".join(lines)
+    await cq.message.edit_text(txt, reply_markup=history_menu())
+    await cq.answer()
+
+
+@router.callback_query(F.data == "hist:headache")
+async def hist_headache(cq: CallbackQuery, user: User, session: AsyncSession) -> None:
+    recs = await HeadacheRepository(session).latest(user.id, limit=10)
+    if not recs:
+        txt = "Нет записей о головной боли"
+    else:
+        loc_ru = {"left": "левая", "right": "правая", "bilateral": "обе стороны",
+                  "whole": "вся голова"}
+        char_ru = {"pulsating": "пульсирующая", "pressing": "давящая",
+                   "stabbing": "колющая", "other": "другая"}
+        dis_ru = {0: "без ограничений", 1: "лёгкие", 2: "умеренные", 3: "тяжёлые"}
+        lines = ["<b>Головная боль — последние записи:</b>"]
+        for r in recs:
+            parts = [f"интенс. {r.intensity}/10"]
+            if r.location:
+                parts.append(loc_ru.get(r.location.value, r.location.value))
+            if r.character:
+                parts.append(char_ru.get(r.character.value, r.character.value))
+            if r.duration_hours:
+                parts.append(f"{r.duration_hours:.1f} ч")
+            if r.disability is not None:
+                parts.append(dis_ru.get(r.disability, str(r.disability)))
+            assoc = []
+            if r.nausea:
+                assoc.append("тошнота")
+            if r.photophobia:
+                assoc.append("светобоязнь")
+            if r.phonophobia:
+                assoc.append("звукобоязнь")
+            if r.aura:
+                assoc.append("аура")
+            if assoc:
+                parts.append(", ".join(assoc))
+            lines.append(f"  {format_user_dt(r.started_at, user.timezone)} · {' · '.join(parts)}")
         txt = "\n".join(lines)
     await cq.message.edit_text(txt, reply_markup=history_menu())
     await cq.answer()

@@ -10,6 +10,7 @@ from app.bot.keyboards.common import consent_kb
 from app.bot.keyboards.patient import main_menu
 from app.db.models import User
 from app.domain.enums import UserRole
+from app.scheduler.scheduler import schedule_greetings, unschedule_greetings
 from app.services.users import UserService
 from app.utils.i18n import t
 
@@ -73,6 +74,8 @@ async def on_consent_yes(
         return
 
     await cq.message.edit_text(t("consent_granted"))
+    if user.role == UserRole.PATIENT:
+        schedule_greetings(user)
     await cq.message.answer(
         "Главное меню:",
         reply_markup=main_menu(is_doctor=(user.role == UserRole.DOCTOR)),
@@ -91,6 +94,7 @@ async def on_consent_no(cq: CallbackQuery) -> None:
 
 @router.message(Command("forget_me"))
 async def cmd_forget(message: Message, session: AsyncSession, user: User) -> None:
+    unschedule_greetings(user.id)
     svc = UserService(session)
     await svc.forget_patient(user)
     await message.answer(

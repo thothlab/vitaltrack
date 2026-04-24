@@ -57,6 +57,20 @@ class AlertSeverity(str, enum.Enum):
     CRITICAL = "critical"
 
 
+class HeadacheLocation(str, enum.Enum):
+    LEFT = "left"
+    RIGHT = "right"
+    BILATERAL = "bilateral"
+    WHOLE = "whole"
+
+
+class HeadacheCharacter(str, enum.Enum):
+    PULSATING = "pulsating"
+    PRESSING = "pressing"
+    STABBING = "stabbing"
+    OTHER = "other"
+
+
 class ReportPeriod(str, enum.Enum):
     WEEK = "7d"
     MONTH = "30d"
