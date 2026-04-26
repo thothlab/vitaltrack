@@ -237,3 +237,18 @@ async def reminder_skip(cq: CallbackQuery, session: AsyncSession, user: User) ->
         reply_markup=main_menu(is_doctor=(user.role == UserRole.DOCTOR)),
     )
     await cq.answer()
+
+
+@router.callback_query(F.data.startswith("med_stop:"))
+async def reminder_stop(cq: CallbackQuery, session: AsyncSession, user: User) -> None:
+    med_id = int(cq.data.split(":")[1])
+    svc = MedicationService(session)
+    med = await svc.repo.by_id(med_id)
+    name = med.name if med else "препарат"
+    await svc.deactivate(med_id)
+    unschedule_medication(med_id)
+    await cq.message.edit_text(
+        f"🚫 Напоминания о «{name}» остановлены.",
+        reply_markup=main_menu(is_doctor=(user.role == UserRole.DOCTOR)),
+    )
+    await cq.answer("Остановлено", show_alert=False)

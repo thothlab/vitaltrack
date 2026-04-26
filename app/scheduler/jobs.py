@@ -42,16 +42,24 @@ async def fire_med_reminder(telegram_id: int, medication_id: int, slot_label: st
             if med is None or user is None or not med.is_active:
                 return
             slot_dt = _slot_to_utc(slot_label, user.timezone)
-            kb = InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(
-                    text="✅ Принял",
-                    callback_data=f"med_take:{medication_id}:{slot_dt.isoformat()}",
-                ),
-                InlineKeyboardButton(
-                    text="⏭ Пропустить",
-                    callback_data=f"med_skip:{medication_id}:{slot_dt.isoformat()}",
-                ),
-            ]])
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="✅ Принял",
+                        callback_data=f"med_take:{medication_id}:{slot_dt.isoformat()}",
+                    ),
+                    InlineKeyboardButton(
+                        text="⏭ Пропустить",
+                        callback_data=f"med_skip:{medication_id}:{slot_dt.isoformat()}",
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🚫 Остановить",
+                        callback_data=f"med_stop:{medication_id}",
+                    ),
+                ],
+            ])
             text = f"💊 Время принять «{med.name}»"
             if med.dose:
                 text += f" ({med.dose})"
